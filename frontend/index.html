@@ -6,68 +6,101 @@
     <title>北邮校园智能生活助手</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="bg-layer bg-grid"></div>
-    <div class="bg-layer bg-glow"></div>
-
-    <div class="app-shell">
-        <aside class="context-panel">
-            <p class="panel-kicker">BUPT CAMPUS AGENT</p>
-            <h1>北邮校园智能生活助手</h1>
-            <p class="panel-desc">教务、食堂、空教室、校园交易一站式对话入口。支持复合任务拆解与多轮记忆上下文。</p>
-
-            <div class="capability-list">
-                <span class="capability">多 Agent 协作</span>
-                <span class="capability">记忆增强问答</span>
-                <span class="capability">MCP 工具路由</span>
-                <span class="capability">复合指令处理</span>
-            </div>
-
-            <div class="api-key-panel">
-                <p class="api-key-title">你的 OpenAI API Key</p>
-                <div class="api-key-row">
-                    <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
-                    <button type="button" id="saveKeyBtn">保存</button>
-                </div>
-                <p class="api-key-hint" id="keyHint">仅保存在当前浏览器，不会写入仓库文件。</p>
-            </div>
-
-            <div class="quick-prompts">
-                <p>试试这些问题</p>
-                <button type="button" class="quick-btn" data-prompt="我在教三，接下来两小时有空闲教室吗？">教三附近空闲教室</button>
-                <button type="button" class="quick-btn" data-prompt="中午推荐一个清淡且预算30以内的食堂窗口">30元内清淡食堂推荐</button>
-                <button type="button" class="quick-btn" data-prompt="我想蹭一节 AI 相关课程，有没有合适的课？">AI 方向可蹭课程</button>
-            </div>
+    <div class="dashboard-shell">
+        <aside class="side-rail">
+            <div class="brand-mark">BA</div>
+            <nav class="rail-nav">
+                <button class="rail-btn rail-btn-active" type="button">●</button>
+                <button class="rail-btn" type="button">◌</button>
+                <button class="rail-btn" type="button">◌</button>
+                <button class="rail-btn" type="button">◌</button>
+            </nav>
+            <div class="rail-user">你</div>
         </aside>
 
-        <section class="chat-panel">
-            <header class="chat-header">
+        <main class="workspace">
+            <header class="topbar">
                 <div>
-                    <p class="chat-title">Campus Console</p>
-                    <p class="chat-subtitle">实时会话 · 记忆状态已启用</p>
+                    <h1>北邮校园智能生活<br>助手</h1>
+                    <p>校园智能助理控制台</p>
                 </div>
-                <span class="status-pill">在线</span>
+                <div class="topbar-actions">
+                    <input type="text" placeholder="搜索对话或工具..." aria-label="搜索">
+                    <button type="button">Upgrade</button>
+                </div>
             </header>
 
-            <main class="chat-container" id="chatContainer">
-                <div class="message system-msg">
-                    <div class="avatar">AI</div>
-                    <div class="bubble glass-effect">
-                        同学你好，我已准备好处理你的校园任务。你可以一次说多个目标，例如“查空教室 + 推荐午饭 + 课程建议”。
+            <section class="content-grid">
+                <article class="card config-card">
+                    <p class="card-title">模型配置</p>
+                    <div class="api-key-row">
+                        <input type="password" id="apiKeyInput" placeholder="OpenAI API Key" autocomplete="off">
+                        <button type="button" id="saveKeyBtn">保存</button>
                     </div>
-                </div>
-            </main>
+                    <div class="api-key-row">
+                        <input type="text" id="apiBaseInput" placeholder="可选：API Base URL" autocomplete="off">
+                    </div>
+                    <div class="api-key-row">
+                        <input type="text" id="modelInput" placeholder="模型名，例如 deepseek-chat" autocomplete="off">
+                    </div>
+                    <p class="api-key-hint" id="keyHint">仅保存至当前浏览器</p>
+                </article>
 
-            <footer class="input-area glass-effect">
-                <input type="text" id="userInput" placeholder="例如：我在教一，帮我找空教室并推荐附近不辣午饭" autocomplete="off">
-                <button id="sendBtn" class="send-btn" aria-label="发送消息">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                </button>
-            </footer>
-        </section>
+                <article class="card preset-card">
+                    <div class="preset-head">
+                        <p class="card-title">预设输入框</p>
+                        <span>快速填充</span>
+                    </div>
+                    <div class="preset-list">
+                        <div class="preset-item">
+                            <label>空教室</label>
+                            <input type="text" value="我在教三，接下来两小时有空闲教室吗？" readonly>
+                            <button type="button" class="preset-fill-btn" data-prompt="我在教三，接下来两小时有空闲教室吗？">填入</button>
+                        </div>
+                        <div class="preset-item">
+                            <label>食堂推荐</label>
+                            <input type="text" value="推荐一个清淡、预算30以内、距离教三近的午饭窗口" readonly>
+                            <button type="button" class="preset-fill-btn" data-prompt="推荐一个清淡、预算30以内、距离教三近的午饭窗口">填入</button>
+                        </div>
+                        <div class="preset-item">
+                            <label>复合任务</label>
+                            <input type="text" value="先查教三空教室，再推荐附近不辣晚饭" readonly>
+                            <button type="button" class="preset-fill-btn" data-prompt="先查教三空教室，再推荐附近不辣晚饭">填入</button>
+                        </div>
+                    </div>
+                    <div class="quick-row">
+                        <button type="button" class="quick-btn" data-prompt="我在教三，接下来两小时有空闲教室吗？">教三空教室</button>
+                        <button type="button" class="quick-btn" data-prompt="中午推荐一个清淡且预算30以内的食堂窗口">30元食堂</button>
+                        <button type="button" class="quick-btn" data-prompt="我想蹭一节 AI 相关课程，有没有合适的课？">AI 蹭课</button>
+                    </div>
+                </article>
+
+                <article class="card chat-card">
+                    <header class="chat-headline">
+                        <p class="card-title">Campus Console</p>
+                        <span class="status-pill">在线</span>
+                    </header>
+                    <main class="chat-container" id="chatContainer">
+                        <div class="message system-msg">
+                            <div class="avatar">AI</div>
+                            <div class="bubble glass-effect">
+                                同学你好，我已准备好处理你的校园任务。你可以一次说多个目标，例如“查空教室 + 推荐午饭 + 课程建议”。
+                            </div>
+                        </div>
+                    </main>
+                    <footer class="input-area glass-effect">
+                        <input type="text" id="userInput" placeholder="例如：我在教一，帮我找空教室并推荐附近不辣午饭" autocomplete="off">
+                        <button id="sendBtn" class="send-btn" aria-label="发送消息">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        </button>
+                    </footer>
+                </article>
+            </section>
+        </main>
     </div>
     <script src="app.js"></script>
 </body>

@@ -1,0 +1,32 @@
+[
+  {
+    "source_id": "kb_classroom_release",
+    "content": "教三通常在整点后 10 分钟会有一批空教室释放，建议优先查询 101-305。",
+    "category": "academic"
+  },
+  {
+    "source_id": "kb_canteen_peak",
+    "content": "工作日 11:30-12:20 食堂高峰明显，若预算 30 以内可优先考虑馨园一层套餐窗口。",
+    "category": "life"
+  },
+  {
+    "source_id": "kb_audit_ai",
+    "content": "蹭课建议先确认课堂容量与任课老师要求，AI 相关课程在下午时段更集中。",
+    "category": "academic"
+  },
+  {
+    "source_id": "kb_flea_safe",
+    "content": "跳蚤市场交易建议约在图书馆门口或教学楼大厅进行，当面验货优先。",
+    "category": "interaction"
+  },
+  {
+    "source_id": "kb_preference_memory",
+    "content": "如果用户表达偏好（如不吃辣、预算 30），应在后续推荐中持续沿用。",
+    "category": "memory"
+  },
+  {
+    "source_id": "kb_multi_intent",
+    "content": "复合任务可拆分为 教务查询、生活推荐、交易反馈 三类并并行组织回复。",
+    "category": "workflow"
+  }
+]

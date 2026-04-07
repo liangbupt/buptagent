@@ -1,0 +1,58 @@
+{
+  "free_classrooms": [
+    {
+      "building": "教三",
+      "time_slot": "10:00-12:00",
+      "classrooms": ["101", "102", "305"]
+    },
+    {
+      "building": "教一",
+      "time_slot": "14:00-16:00",
+      "classrooms": ["201", "204"]
+    }
+  ],
+  "audit_courses": [
+    {
+      "topic": "ai",
+      "course": "AI Fundamentals",
+      "preferred_time": "afternoon"
+    },
+    {
+      "topic": "computer vision",
+      "course": "Computer Vision Intro",
+      "preferred_time": "afternoon"
+    }
+  ],
+  "dining": [
+    {
+      "tag": "spicy",
+      "text": "Recommend the spicy hotpot on the 2nd floor of Student Dining Hall."
+    },
+    {
+      "tag": "light",
+      "text": "Recommend the light set meal on the 1st floor of Xinyuan Dining Hall."
+    }
+  ],
+  "flea_market": [
+    {
+      "keyword": "monitor",
+      "budget": "300",
+      "text": "used monitor 300 CNY"
+    },
+    {
+      "keyword": "lamp",
+      "budget": "50",
+      "text": "desk lamp 45 CNY"
+    }
+  ],
+  "feedback": [
+    {
+      "topic": "canteen",
+      "text": "Recent canteen feedback is mostly positive with queue-time suggestions."
+    },
+    {
+      "topic": "study",
+      "text": "Study space feedback asks for more sockets and quieter zones."
+    }
+  ]
+}

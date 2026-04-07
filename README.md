@@ -1,64 +1,76 @@
-# BUPT Campus Smart Life Assistant Agent (北邮校园智能生活助手) 🎓
+# 🌟 BUPT Campus Smart Life Assistant Agent
 
-本项目是一个基于 LangGraph 的多智能体 (Multi-Agent) 架构校园生活辅助系统。系统配备前端 UI 界面，提供自然语言交互的统一入口，能自动拆解复杂任务，下发给各大垂直领域的专家 Agent (如：教务专家、生活推荐专家) ，从而为您提供最无缝的大学生活体验。
+> **北邮校园智能生活助手** —— 融合 LangGraph 多智能体架构、可解释混合 RAG、长短期记忆治理与 MCP 标准协议的综合性 AI Agent 平台。
 
-## 🌟 核心特性
-1. **多域意图识别引擎 (Supervisor Agent)**：能解析“复合指令”（例如查教室的同时推荐食堂），利用 CoT (思维链) 机制进行智能拆解与分发。
-2. **底层专家 Worker**: 细分的教务 Agent 与 生活 Agent 分别接入标准化的 MCP 外部工具，避免“工具幻觉”与执行拥堵。
-3. **记忆化会话上下文管理**: 基于 `LangGraph Checkpointer` 提供无缝的短时跨越多轮对话的状态留存，随时进行代词指代消解。
-4. **精美交互界面**: 现代化极简的 Glassmorphism Web 客户端。
+## 🎯 项目定位与核心价值
 
-## 🛠️ 技术栈
-- **Backend**: Python 3.10+, FastAPI, Uvicorn
-- **AI/LLM Framework**: LangGraph, LangChain, LangChain-OpenAI
-- **Frontend**: HTML5, Vanilla JS, CSS3
-- **Tools**: 基于函数的工具库 (可延伸为 Model Context Protocol 独立 Server)
+本项目旨在为高校师生提供一个**统一的自然语言交互入口**，解决教务查询、食堂推荐、跳蚤市场等场景中信息碎片化的问题。从工程角度，告别“单体黑盒大模型”，实现**路由可控、检索可释、记忆防污、工具解耦**的工业级 Agent 架构。
 
-## 📦 快速部署与运行指北
+## 🏗️ 核心架构拆解
 
-### 1. 配置密钥环境变量
-项目根目录下有 `.env.example` 文件，将其复制一份并重命名为 `.env`，然后填入您真实的 API Key：
-```env
-OPENAI_API_KEY=your_openai_api_key_here
+```mermaid
+flowchart LR
+    subgraph 接入层
+        U[前端交互界面] -->|user_id, message, configs| API[FastAPI 网关]
+    end
+
+    subgraph 上下文构建层
+        API --> ST[短期记忆 Redis<br>TTL/会话隔离]
+        API --> LT[长期记忆 Chroma<br>打分触发/去重存储]
+        API --> RAG[可解释检索<br>keyword+vector+RRF]
+    end
+
+    subgraph 多智能体路由层
+        API --> G[LangGraph 核心图]
+        G --> SUP[Supervisor<br>结构化输出: ROUTE/RATIONALE/CONFIDENCE]
+        G --> W1[academic_agent]
+        G --> W2[life_agent]
+        G --> W3[interaction_agent]
+    end
+
+    subgraph 标准化工具层
+        W1 & W2 & W3 -.-> |ReAct| MCPClient[MCP Client Session]
+        MCPClient --> MCPServer[FastMCP 协议服务]
+        MCPServer --> Provider[数据源 Provider<br>json/sqlite/mock]
+    end
+
+    API --> Audit[(路由审计日志)]
+    RAG --> KB[External KB JSON]
 ```
 
-### 2. 依赖安装
-推荐使用 Python 的虚拟环境，在终端执行以下命令：
+## ✨ 核心亮点特性
+
+1. **工程化多 Agent 路由 (LangGraph)**
+   - Supervisor 基于结构化输出进行决策，确保路径收敛。通过保留 `ROUTE`、`RATIONALE` 与 `CONFIDENCE`，实现思维链（CoT）的可观测与审计。
+2. **透明可解释 RAG (Explainable Hybrid RAG)**
+   - **多路召回**：轻量级向量匹配 + 关键词 TF-IDF 匹配。
+   - **融合重排**：RRF (Reciprocal Rank Fusion) 结合 Token Overlap 轻量重排。
+   - **全面可释**：每条候选均返回 `source_id` 及各阶段得分，杜绝“黑盒推荐”，在前端或 API 直接附“参考片段来源”。
+3. **精细化记忆治理 (Multi-tier Memory)**
+   - **隔离与时效**：短期记忆基于 Redis 队列，自动 TTL 防膨胀。
+   - **抗污染写入**：长期记忆拒绝纯规则捕获，改用“模型打分阈值+文本哈希去重”双重校验，且支持分层定点清除。
+4. **标准化 MCP 协议栈 (Model Context Protocol)**
+   - 抛弃强绑定的本地函数直调，引入官方 Python SDK 的 FastMCP 注册及 stdio_client 调用。
+   - 实现工具集底层解耦，后续接入校园真实数据源或扩充跨域服务时，无需改动 Agent 推测链路。
+
+## 🚀 快速上手
+
+### 1) 环境与依赖
 ```bash
 pip install -r requirements.txt
+cp .env.example .env
 ```
+在 `.env` 中按需填写 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 以及 `LLM_MODEL`。
 
-### 3. 本地启动服务
-由于我们加入了前端界面，在工程根目录执行以下命令，即可同时拉起后端并托管前台：
+### 2) 启动服务
 ```bash
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-服务启动完毕后：
-- 👉 **访问极致精美的前端聊天界面**：[http://localhost:8000/](http://localhost:8000/)
-- 📄 后端调试与 API Swagger 接口文档：[http://localhost:8000/docs](http://localhost:8000/docs)
+- **Web UI**: http://localhost:8000/
+- **API Docs**: http://localhost:8000/docs
+- 支持在前端侧边栏动态配置 API Key 与模型网关参数，实现不同环境一键联调。
 
-## 🔐 开源发布与密钥安全说明
-
-本项目适合公开到 GitHub，但请遵守以下规则：
-
-1. **不要提交真实 API Key**
-	- 仓库中只保留 `.env.example`。
-	- 使用者应复制 `.env.example` 为 `.env` 并填写自己的密钥。
-
-2. **确保 `.env` 与虚拟环境不入库**
-	- 项目已提供 `.gitignore`，默认忽略 `.env`、`.venv/` 等本地文件。
-
-3. **调用说明**
-	- 克隆项目后，先执行：`cp .env.example .env`（Windows 可手动复制）。
-	- 在 `.env` 中填入 `OPENAI_API_KEY=你的密钥`。
-	- 再按上文命令安装依赖并启动服务。
-
-4. **如曾泄露密钥请立刻轮换**
-	- 如果真实密钥曾被提交到任何远程仓库，请立即在 OpenAI 控制台撤销并生成新 Key。
-
-## 🧪 演练测试示例
-在前端界面的输入框中，大胆输入长难复合指令检测它的本领，例如：
-> “我在教三上课，帮我看看有没有空闲教室自习一下，顺便看看中午去哪里吃辣的。”
-
-随后，可以不提及主语，触发长期代词消解的测试能力：
-> “那不吃辣的呢，换个清淡的。”
+## 🛡️ 开源与工程安全
+- 密钥级配置通过 `.env` 与前端本地 `localStorage` 隔离。
+- 提供错误兜底隔离（Fallback），MCP 协议工具崩溃时自动切换本地后验兜底。
+- 内置针对敏感凭证（API Token/DB Conn）的忽略防线 `.gitignore`。
