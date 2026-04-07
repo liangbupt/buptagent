@@ -9,10 +9,11 @@ from app.agents.supervisor import create_supervisor_agent, AgentState
 from app.agents.workers import create_academic_agent, create_life_agent, create_interaction_agent
 from app.core.config import settings
 
-def build_graph():
+def build_graph(api_key: str | None = None):
+    resolved_key = (api_key or settings.OPENAI_API_KEY or "").strip()
     llm = (
-        ChatOpenAI(model=settings.LLM_MODEL, api_key=settings.OPENAI_API_KEY)
-        if settings.OPENAI_API_KEY
+        ChatOpenAI(model=settings.LLM_MODEL, api_key=resolved_key)
+        if resolved_key
         else None
     )
     

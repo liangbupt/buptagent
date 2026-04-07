@@ -1,20 +1,32 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.core.graph import build_graph
+from app.core.config import settings
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.memory.hybrid_memory import hybrid_memory
 
 router = APIRouter()
 
-# Initialize graph which now has memory saver included
-graph = build_graph()
+graph_cache = {}
 
 class ChatRequest(BaseModel):
     user_id: str
     message: str
+    api_key: str | None = None
 
 class ChatResponse(BaseModel):
     reply: str
+
+
+def _get_graph_for_request(api_key: str | None):
+    resolved_key = (api_key or settings.OPENAI_API_KEY or "").strip()
+    if not resolved_key:
+        return None
+
+    if resolved_key not in graph_cache:
+        graph_cache[resolved_key] = build_graph(api_key=resolved_key)
+
+    return graph_cache[resolved_key]
 
 
 def _build_memory_context(user_id: str, user_message: str) -> str:
@@ -46,8 +58,12 @@ def _should_store_long_term(message: str) -> bool:
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
+    graph = _get_graph_for_request(request.api_key)
     if not graph:
-        raise HTTPException(status_code=500, detail="Graph not initialized. Check OPENAI_API_KEY inside .env")
+        raise HTTPException(
+            status_code=400,
+            detail="Missing API key. Please provide api_key in request or configure OPENAI_API_KEY in .env",
+        )
         
     try:
         memory_context = _build_memory_context(request.user_id, request.message)

@@ -2,6 +2,11 @@ const chatContainer = document.getElementById('chatContainer');
 const userInput = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
 const quickButtons = document.querySelectorAll('.quick-btn');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const saveKeyBtn = document.getElementById('saveKeyBtn');
+const keyHint = document.getElementById('keyHint');
+
+const API_KEY_STORAGE_KEY = 'bupt_agent_api_key';
 
 // Generate a random user ID for the session to utilize memory checkpointer
 const userId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -62,6 +67,18 @@ function escapeHTML(str) {
     );
 }
 
+function getSavedApiKey() {
+    return localStorage.getItem(API_KEY_STORAGE_KEY) || '';
+}
+
+function setSavedApiKey(value) {
+    localStorage.setItem(API_KEY_STORAGE_KEY, value);
+}
+
+function updateKeyHint(text) {
+    keyHint.textContent = text;
+}
+
 async function sendMessage() {
     const text = userInput.value.trim();
     if (!text) return;
@@ -73,6 +90,7 @@ async function sendMessage() {
     sendBtn.disabled = true;
 
     try {
+        const apiKey = (apiKeyInput.value || '').trim() || getSavedApiKey().trim();
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
@@ -80,7 +98,8 @@ async function sendMessage() {
             },
             body: JSON.stringify({
                 user_id: userId,
-                message: text
+                message: text,
+                api_key: apiKey || null
             })
         });
 
@@ -107,6 +126,24 @@ quickButtons.forEach((button) => {
         userInput.focus();
     });
 });
+
+saveKeyBtn.addEventListener('click', () => {
+    const value = (apiKeyInput.value || '').trim();
+    if (!value) {
+        localStorage.removeItem(API_KEY_STORAGE_KEY);
+        updateKeyHint('已清空浏览器中保存的 Key。');
+        return;
+    }
+
+    setSavedApiKey(value);
+    updateKeyHint('已保存到当前浏览器，可直接开始对话。');
+});
+
+const initialApiKey = getSavedApiKey();
+if (initialApiKey) {
+    apiKeyInput.value = initialApiKey;
+    updateKeyHint('已检测到本地保存的 Key。');
+}
 
 sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keypress', (e) => {

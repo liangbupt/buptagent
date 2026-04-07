@@ -26,6 +26,15 @@
                 <span class="capability">复合指令处理</span>
             </div>
 
+            <div class="api-key-panel">
+                <p class="api-key-title">你的 OpenAI API Key</p>
+                <div class="api-key-row">
+                    <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
+                    <button type="button" id="saveKeyBtn">保存</button>
+                </div>
+                <p class="api-key-hint" id="keyHint">仅保存在当前浏览器，不会写入仓库文件。</p>
+            </div>
+
             <div class="quick-prompts">
                 <p>试试这些问题</p>
                 <button type="button" class="quick-btn" data-prompt="我在教三，接下来两小时有空闲教室吗？">教三附近空闲教室</button>
