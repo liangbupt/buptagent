@@ -1,0 +1,11 @@
+fastapi==0.104.1
+uvicorn==0.23.2
+langchain
+langchain-openai
+langgraph
+redis
+chromadb
+pydantic==2.*
+pydantic-settings
+python-dotenv
+aiofiles

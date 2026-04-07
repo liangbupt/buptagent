@@ -1,0 +1,116 @@
+const chatContainer = document.getElementById('chatContainer');
+const userInput = document.getElementById('userInput');
+const sendBtn = document.getElementById('sendBtn');
+const quickButtons = document.querySelectorAll('.quick-btn');
+
+// Generate a random user ID for the session to utilize memory checkpointer
+const userId = 'user_' + Math.random().toString(36).substr(2, 9);
+
+function addMessage(text, isUser = false) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${isUser ? 'user-msg' : 'system-msg'}`;
+    
+    let content = '';
+    if (isUser) {
+        content = `<div class="bubble">${escapeHTML(text)}</div>`;
+    } else {
+        content = `
+            <div class="avatar">🤖</div>
+            <div class="bubble glass-effect">${escapeHTML(text)}</div>
+        `;
+    }
+    
+    msgDiv.innerHTML = content;
+    chatContainer.appendChild(msgDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function addTypingIndicator() {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'message system-msg';
+    msgDiv.id = 'typingIndicator';
+    msgDiv.innerHTML = `
+        <div class="avatar">🤖</div>
+        <div class="bubble glass-effect">
+            <div class="typing-indicator">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+        </div>
+    `;
+    chatContainer.appendChild(msgDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function removeTypingIndicator() {
+    const indicator = document.getElementById('typingIndicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g, 
+        tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag)
+    );
+}
+
+async function sendMessage() {
+    const text = userInput.value.trim();
+    if (!text) return;
+
+    // UI Updates
+    addMessage(text, true);
+    userInput.value = '';
+    addTypingIndicator();
+    sendBtn.disabled = true;
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                message: text
+            })
+        });
+
+        const data = await response.json();
+        removeTypingIndicator();
+
+        if (response.ok) {
+            addMessage(data.reply);
+        } else {
+            addMessage('Oops! 出错了：' + (data.detail || '未知错误'));
+        }
+    } catch (error) {
+        removeTypingIndicator();
+        addMessage('网络请求失败，请确保后台 API 已正常运行。');
+    } finally {
+        sendBtn.disabled = false;
+        userInput.focus();
+    }
+}
+
+quickButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+        userInput.value = button.dataset.prompt || '';
+        userInput.focus();
+    });
+});
+
+sendBtn.addEventListener('click', sendMessage);
+userInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
