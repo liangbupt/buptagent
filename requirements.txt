@@ -1,5 +1,5 @@
-fastapi==0.104.1
-uvicorn==0.23.2
+fastapi>=0.104.1
+uvicorn>=0.23.2
 langchain
 langchain-openai
 langgraph
