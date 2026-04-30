@@ -2,8 +2,9 @@ import json
 import math
 import time
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Optional
 
+from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from app.core.config import settings
 
 try:
@@ -22,11 +23,21 @@ class HybridMemoryManager:
 
     def __init__(self) -> None:
         self._redis_client = None
+        self._chroma_client = None
         self._chroma_collection = None
+        self._semantic_cache_collection = None
         self._local_turns: Dict[str, List[dict]] = defaultdict(list)
         self._local_long_term: Dict[str, List[dict]] = defaultdict(list)
         self._long_term_ttl_sec = 60 * 60 * 24 * 30
         self._short_term_ttl_sec = 60 * 60 * 24 * 7
+        
+        # 使用统一的 BGE 模型计算 Embedding，替换掉以前粗糙的函数
+        self._embeddings = HuggingFaceBgeEmbeddings(
+            model_name="BAAI/bge-large-zh-v1.5",
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True}
+        )
+        
         self._init_redis()
         self._init_chroma()
 
@@ -53,22 +64,66 @@ class HybridMemoryManager:
         if not chromadb:
             return
         try:
-            client = chromadb.PersistentClient(path=settings.CHROMA_DB_DIR)
-            self._chroma_collection = client.get_or_create_collection(name="user_long_term_memory")
+            self._chroma_client = chromadb.PersistentClient(path=settings.CHROMA_DB_DIR)
+            self._chroma_collection = self._chroma_client.get_or_create_collection(
+                name="user_long_term_memory"
+            )
+            # 开辟一个专门的 Collection 用于存放 Semantic Cache
+            self._semantic_cache_collection = self._chroma_client.get_or_create_collection(
+                name="semantic_cache", 
+                metadata={"hnsw:space": "cosine"}
+            )
         except Exception:
             self._chroma_collection = None
+            self._semantic_cache_collection = None
 
-    def _to_embedding(self, text: str, dims: int = 64) -> List[float]:
-        """Lightweight deterministic embedding that avoids external model dependency."""
-        vec = [0.0] * dims
-        for token in text.lower().split():
-            idx = hash(token) % dims
-            vec[idx] += 1.0
-        norm = math.sqrt(sum(v * v for v in vec))
-        if norm > 0:
-            vec = [v / norm for v in vec]
-        return vec
+    def _to_embedding(self, text: str) -> List[float]:
+        """使用 BGE 模型计算真正的词级语义向量，而不是之前的字符哈希。"""
+        # 注意：由于我们在 BGE 中已经配置了 normalize_embeddings=True，出来的向量就是归一化好的稠密向量
+        return self._embeddings.embed_query(text)
 
+    # ==========================
+    # Semantic Cache 相关实现
+    # ==========================
+    def check_semantic_cache(self, query_text: str, threshold: float = 0.95) -> Optional[str]:
+        """检查是否有语义极其相似的历史提问"""
+        if not self._semantic_cache_collection:
+            return None
+            
+        try:
+            results = self._semantic_cache_collection.query(
+                query_embeddings=[self._to_embedding(query_text)],
+                n_results=1,
+                include=["metadatas", "distances"]
+            )
+            distances = results.get("distances", [[]])[0]
+            metadatas = results.get("metadatas", [[]])[0]
+            
+            if distances and metadatas:
+                distance = distances[0]
+                similarity = 1.0 - distance # cosine distance to similarity
+                # 如果相似度高于阈值，直接命中缓存！
+                if similarity >= threshold:
+                    return metadatas[0].get("response")
+        except Exception:
+            pass
+        return None
+
+    def save_semantic_cache(self, query_text: str, response_text: str) -> None:
+        """非命中时，或者最后流转结束时，把答案保存到语义缓存库"""
+        if not self._semantic_cache_collection:
+            return
+            
+        try:
+            doc_id = f"cache:{self._text_hash(query_text)}"
+            self._semantic_cache_collection.upsert(
+                ids=[doc_id],
+                embeddings=[self._to_embedding(query_text)],
+                metadatas=[{"query": query_text, "response": response_text, "timestamp": self._now()}]
+            )
+        except Exception:
+            pass
+            
     def save_turn(self, user_id: str, user_message: str, assistant_message: str, keep: int = 12) -> None:
         record = {
             "ts": self._now(),

@@ -1,57 +1,83 @@
 # 🌟 BUPT Campus Smart Life Assistant Agent
 
-> **北邮校园智能生活助手** —— 融合 LangGraph 多智能体架构、可解释混合 RAG、长短期记忆治理与 MCP 标准协议的综合性 AI Agent 平台。
+> **北邮校园智能生活助手** —— 融合 LangGraph 循环状态图、混合双路 RAG、本地化分层记忆治理与 MCP 标准协议的校园级综合性 AI Agent 平台。
 
 ## 🎯 项目定位与核心价值
 
-本项目旨在为高校师生提供一个**统一的自然语言交互入口**，解决教务查询、食堂推荐、跳蚤市场等场景中信息碎片化的问题。从工程角度，告别“单体黑盒大模型”，实现**路由可控、检索可释、记忆防污、工具解耦**的工业级 Agent 架构。
+本项目旨在为高校师生提供一个**统一的自然语言交互入口**，解决教务查询、食堂推荐、蹭课二手等校园场景中信息碎片化的问题。从工程角度全面告别“单体黑盒大模型”与“花哨重资产框架”，以**极简、轻量、高可控**为设计理念，落地了首字秒出的流式响应、完全可释的混合检索增强、极低开销的记忆过滤与严格解耦的工具调用网络。
 
 ## 🏗️ 核心架构拆解
 
 ```mermaid
-flowchart LR
-    subgraph 接入层
-        U[前端交互界面] -->|user_id, message, configs| API[FastAPI 网关]
+flowchart TD
+    subgraph 接入层 (API & Stream)
+        UI[前端交互界面 / Web UI]
+        SSE[FastAPI SSE端点<br>astream_events 发动机]
     end
 
-    subgraph 上下文构建层
-        API --> ST[短期记忆 Redis<br>TTL/会话隔离]
-        API --> LT[长期记忆 Chroma<br>打分触发/去重存储]
-        API --> RAG[可解释检索<br>keyword+vector+RRF]
+    subgraph 记忆与缓存管控 (Hybrid Memory)
+        SCache[(语义缓存池<br>短路拦截)]
+        STM[(短期工作记忆<br>Redis滑动窗口)]
+        LTM[(长期偏好记忆<br>Chroma哈希查重)]
+        Heuristics[规则启发式打分<br>毫秒级过滤提取]
     end
 
-    subgraph 多智能体路由层
-        API --> G[LangGraph 核心图]
-        G --> SUP[Supervisor<br>结构化输出: ROUTE/RATIONALE/CONFIDENCE]
-        G --> W1[academic_agent]
-        G --> W2[life_agent]
-        G --> W3[interaction_agent]
+    subgraph 本地化混合 RAG 系统
+        RRF[RRF 倒数秩融合重排]
+        TFIDF[手写 TF-IDF<br>逆文档匹配]
+        BGE[BGE-large-zh<br>余弦相似度检索]
+        KB[(高度受控校园 JSON库<br>Bigram分词切割)]
     end
 
-    subgraph 标准化工具层
-        W1 & W2 & W3 -.-> |ReAct| MCPClient[MCP Client Session]
-        MCPClient --> MCPServer[FastMCP 协议服务]
-        MCPServer --> Provider[数据源 Provider<br>json/sqlite/mock]
+    subgraph 智能决策与控制网 (LangGraph)
+        Supervisor[总控路由器<br>带有回路与动态监控]
+        W1[Academic Agent]
+        W2[Life Agent]
+        W3[Interaction Agent]
     end
 
-    API --> Audit[(路由审计日志)]
-    RAG --> KB[External KB JSON]
+    subgraph 本地解耦工具层 (FastMCP)
+        Client[MCP Stdio Client<br>本地安全子进程通信]
+        Server[MCP Server<br>完全脱离大模型绑定]
+        Provider[ToolDataProvider<br>兜底防脏机制]
+    end
+
+    UI <-->|HTTP /流式 SSE| SSE
+    SSE --> SCache
+    SCache -- 未命中 --> STM & Heuristics
+    Heuristics --> |权重阈值提取| LTM
+    STM --> Supervisor
+    Supervisor --> |路由派发| W1 & W2 & W3
+    W1 & W2 & W3 --> |碰壁观测回流| Supervisor
+    W1 & W2 & W3 -.-> |指令请求| Client
+    Client <--> Server <--> Provider
+    W1 & W2 & W3 <--> RRF
+    RRF --> TFIDF & BGE
+    TFIDF & BGE --> KB
 ```
 
 ## ✨ 核心亮点特性
 
-1. **工程化多 Agent 路由 (LangGraph)**
-   - Supervisor 基于结构化输出进行决策，确保路径收敛。通过保留 `ROUTE`、`RATIONALE` 与 `CONFIDENCE`，实现思维链（CoT）的可观测与审计。
-2. **透明可解释 RAG (Explainable Hybrid RAG)**
-   - **多路召回**：轻量级向量匹配 + 关键词 TF-IDF 匹配。
-   - **融合重排**：RRF (Reciprocal Rank Fusion) 结合 Token Overlap 轻量重排。
-   - **全面可释**：每条候选均返回 `source_id` 及各阶段得分，杜绝“黑盒推荐”，在前端或 API 直接附“参考片段来源”。
-3. **精细化记忆治理 (Multi-tier Memory)**
-   - **隔离与时效**：短期记忆基于 Redis 队列，自动 TTL 防膨胀。
-   - **抗污染写入**：长期记忆拒绝纯规则捕获，改用“模型打分阈值+文本哈希去重”双重校验，且支持分层定点清除。
-4. **标准化 MCP 协议栈 (Model Context Protocol)**
-   - 抛弃强绑定的本地函数直调，引入官方 Python SDK 的 FastMCP 注册及 stdio_client 调用。
-   - 实现工具集底层解耦，后续接入校园真实数据源或扩充跨域服务时，无需改动 Agent 推测链路。
+1. **极速的 TTFT 体验与流式响应 (LangGraph V2 + SSE)**
+   - 利用 FastAPI 的 `StreamingResponse` 搭配 LangGraph `astream_events` 发动机，实现毫秒级首字时延。
+   - 提前向客户端推送 RAG 引用的来源（`rag_hits`），极大填补用户的视觉等待空白。
+   - 搭载 **Semantic Cache (语义缓存池)** 短路器，遇到高频同义问题即刻拦截免过 LLM 退回缓存应答。
+
+2. **抗污染的轻量分层记忆管理 (Hybrid Memory Manager)**
+   - 摒弃极易阻塞超时的 Celery 大模型扫库，改为基于本地加权打分规则 (`score_long_term_signal`) 进行毫秒级长期偏好识别。
+   - 长期记忆落盘前依靠 `_text_hash` 精准比对去重，免除同义语义爆炸；短期记忆用 Redis 原生 `ltrim` 切断窗口，免除 OOM 数据灾难。
+
+3. **双路融合可解释检索 (Custom Hybrid RAG Pipeline)**
+   - 放弃效果模糊粗暴的文字递归切分与 OCR，转而针对中文与校园习惯编写 **Bigram 双字滑动切分** 和纯结构化管理。
+   - 在 BGE 级密度向量基础上加入了自编底层的 **TF-IDF 倒排统分逻辑**，强行压制实体编号错乱引起的向量距离“近义误判”，尾部配合 RRF 平滑融合并追溯 `source_id`。
+
+4. **交叉校核与彻底的工具解耦 (Cross-Check & MCP Protocol)**
+   - 在 LangGraph 中搭建具有“打回边 (Feedback Loop)”的拓扑 (`workflow.add_edge("agent", "supervisor")`)。子节点一旦工具请求遇挫，立刻返回将意图推回，由 Supervisor 再次调整线路。
+   - 移除传统项目单体绑定的外部工具调用方式，挂载原生 MCP (Model Context Protocol)。子进程化执行，自带本地模拟器 `Provider` 进行错误隔离无缝兜底。
+
+5. **LLM-as-a-Judge 自闭环自动化评测架构**
+   - 建立自有 `Golden Test Set`（黄金测评准线）与 `evaluate_agent.py` 测试脚本，通过上帝视角裁量打分。
+   - 实现包含 `Recall Score` 与无幻觉指数 `Faithfulness` 的严格度量输出。
 
 ## 🚀 快速上手
 
@@ -60,7 +86,7 @@ flowchart LR
 pip install -r requirements.txt
 cp .env.example .env
 ```
-在 `.env` 中按需填写 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 以及 `LLM_MODEL`。
+在 `.env` 中按需填写 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 以及对应的大语言模型名称。
 
 ### 2) 启动服务
 ```bash
@@ -68,9 +94,9 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 - **Web UI**: http://localhost:8000/
 - **API Docs**: http://localhost:8000/docs
-- 支持在前端侧边栏动态配置 API Key 与模型网关参数，实现不同环境一键联调。
+- 支持在前端侧边栏动态配置 API Key 与模型网关参数，实现不同环境的一键接入。
 
 ## 🛡️ 开源与工程安全
-- 密钥级配置通过 `.env` 与前端本地 `localStorage` 隔离。
-- 提供错误兜底隔离（Fallback），MCP 协议工具崩溃时自动切换本地后验兜底。
-- 内置针对敏感凭证（API Token/DB Conn）的忽略防线 `.gitignore`。
+- 密钥级配置通过 `.env` 与前端本地 `localStorage` 隔离，确保安全传输。
+- MCP 及外层路由均做了完善的 Fallback 回落机制，杜绝脏状态传入下级流。
+- ChromaDB 等向量底座与 SQlite 被放置为免部署文件级读写，零成本部署。

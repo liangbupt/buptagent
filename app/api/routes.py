@@ -1,5 +1,8 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+import json
+import asyncio
 from app.core.graph import build_graph
 from app.core.config import settings
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -139,6 +142,56 @@ async def chat_endpoint(request: ChatRequest):
                 "请在前端的模型输入框改成该网关可用模型（例如 deepseek-chat / qwen-plus 等）。"
             )
         raise HTTPException(status_code=500, detail=detail)
+
+
+@router.post("/chat/stream")
+async def chat_endpoint_stream(request: ChatRequest):
+    """
+    提供给前端 Server-Sent Events (SSE) 流式接口以优化 TTFT（首字返回时延）
+    """
+    graph = _get_graph_for_request_with_base(request.api_key, request.api_base, request.model)
+    if not graph:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing API key. Please provide api_key in request or configure OPENAI_API_KEY in .env",
+        )
+
+    async def event_generator():
+        try:
+            # 1. 执行向量召回，并在第一个包打出参考片段信息
+            rag_hits = campus_rag_retriever.retrieve_with_explanations(query=request.message, top_k=2)
+            if rag_hits:
+                refs = [f"【检索到】[{h.get('source_id')}] {h.get('content')}" for h in rag_hits]
+                yield f"data: {json.dumps({'content': '[系统] ' + ' / '.join(refs) + '\\n\\n'})}\n\n"
+            
+            memory_context = _build_memory_context(request.user_id, request.message, rag_hits)
+            inputs = {
+                "messages": [
+                    SystemMessage(content=memory_context),
+                    HumanMessage(content=request.message),
+                ]
+            }
+            config = {"configurable": {"thread_id": request.user_id}}
+            
+            full_reply = ""
+            # 2. 核心流式传输 (Streaming) 监听节点更新
+            async for event in graph.astream_events(inputs, config=config, version="v2"):
+                kind = event["event"]
+                # 这里针对 ChatModel 产生的 token 节点事件进行流式输出
+                if kind == "on_chat_model_stream":
+                    chunk = event["data"]["chunk"].content
+                    if chunk:
+                        full_reply += chunk
+                        yield f"data: {json.dumps({'content': chunk})}\n\n"
+            
+            # 后续处理记忆存储等逻辑
+            hybrid_memory.save_turn(request.user_id, request.message, full_reply)
+            yield "data: [DONE]\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.delete("/memory/{user_id}")
